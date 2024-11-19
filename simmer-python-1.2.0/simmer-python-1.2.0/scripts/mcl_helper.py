@@ -20,6 +20,10 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 MAX_SENSOR_READING = 6000.0 / 127.0
 MIN_SENSOR_READING = 3.0 / 2.54
+MIN_SENSOR_STD = 1
+MAX_SENSOR_STD = 3
+certainty = 0
+
 
 # Simulation parameters
 NUM_PARTICLES = 5000
@@ -366,8 +370,6 @@ def estimate(particles):
     particles_y = [p.y for p in particles]
     particles_theta = [p.theta for p in particles]
     weights = [p.weight for p in particles]
-    print(len(particles_x))
-    print(len(weights))
     mean_x = np.average(particles_x, weights = weights)
     mean_y = np.average(particles_y, weights = weights)
     mean_theta = np.average(particles_theta, weights = weights)
@@ -385,8 +387,8 @@ def resample_particles(particles, grid, valid_positions, pred_x, pred_y):
     # Normalize weights
     weights = [w / total_weight for w in weights]
     variance = particle_variance(particles, weights, pred_x, pred_y)
-    print(variance)
     certainty = ppi**2 * 2 / (variance)
+    print(f"Certainty: {certainty}")
     adjusted_num_particles = max(int(NUM_PARTICLES * max(1 - certainty, 0)), 1000)
 
     # resampling algorithm
@@ -394,7 +396,6 @@ def resample_particles(particles, grid, valid_positions, pred_x, pred_y):
         
     # resample from index
     particles = [particles[i] for i in indexes[:adjusted_num_particles]]
-    # print(len(particles))
     
     # Jitter the particles' positions and orientations to keep them close to their original pose
     def jitter_particle(particle):
@@ -480,8 +481,9 @@ class Particle:
     def update_weight(self, lidar_distances, expected_distances):
         """Update particle weight based on the lidar readings."""
         # Calculate how closely the lidar readings match expected points        
+        sensor_std = MIN_SENSOR_STD + (MAX_SENSOR_STD - MIN_SENSOR_STD) * max(1 - certainty, 0)
         for lidar, expected in zip(lidar_distances, expected_distances):
-            self.weight *= normal_pdf(expected, lidar, 2 * ppi)
+            self.weight *= normal_pdf(expected, lidar, sensor_std * ppi)
         self.weight += 1.e-300
 
     def lidar_scan(self, grid):
