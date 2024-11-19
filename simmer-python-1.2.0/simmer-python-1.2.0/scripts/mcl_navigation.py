@@ -402,8 +402,7 @@ while running:
         if rotation_degrees <= 460:
             transmit(packetize('r0:10'))
             [responses, time_rx] = receive()
-            time.sleep(2)
-            # can add a time.sleep() here if necessary
+            time.sleep(0.75)
         else:
             # run obstacle for a few seconds, then rotate to localize again
             obstacle_avoidance(25)

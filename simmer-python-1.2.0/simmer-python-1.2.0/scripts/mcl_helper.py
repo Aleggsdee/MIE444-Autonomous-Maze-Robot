@@ -385,7 +385,6 @@ def resample_particles(particles, grid, valid_positions, pred_x, pred_y):
     # Normalize weights
     weights = [w / total_weight for w in weights]
     variance = particle_variance(particles, weights, pred_x, pred_y)
-    print(variance)
     certainty = ppi**2 * 2 / (variance)
     adjusted_num_particles = max(int(NUM_PARTICLES * max(1 - certainty, 0)), 1000)
 
@@ -481,7 +480,7 @@ class Particle:
         """Update particle weight based on the lidar readings."""
         # Calculate how closely the lidar readings match expected points        
         for lidar, expected in zip(lidar_distances, expected_distances):
-            self.weight *= normal_pdf(expected, lidar, 2 * ppi)
+            self.weight *= normal_pdf(expected, lidar, 2.5 * ppi)
         self.weight += 1.e-300
 
     def lidar_scan(self, grid):
