@@ -29,7 +29,7 @@ certainty = 0
 NUM_PARTICLES = 5000
 
 # Noise parameters
-MOVEMENT_NOISE = 0.1
+MOVEMENT_NOISE = 0.025
 
 
 with open('sensor_data_3_ppi_15_beam_angle.pkl', 'rb') as f:
@@ -449,7 +449,8 @@ class Particle:
 
     def move(self, drive_type, drive_value, grid):
         # Add movement noise
-        translation_noise = random.gauss(0, MOVEMENT_NOISE) * drive_value
+        # translation_noise = random.gauss(0, MOVEMENT_NOISE) * drive_value
+        translation_noise = 0
         angular_noise = random.gauss(0, math.radians(0.02)) * drive_value
 
         new_x = 0
@@ -468,7 +469,7 @@ class Particle:
         elif drive_type == 'r0':
             new_theta = self.theta + math.radians(drive_value) + angular_noise
         else:
-            print("not a drive command")
+            pass
 
         # Ensure particle stays within the drivable area
         if 0 <= int(new_x) < len(grid[0]) and 0 <= int(new_y) < len(grid) and grid[int(new_y)][int(new_x)] == 0:
@@ -618,6 +619,7 @@ def steps_to_movement(m1_steps, m2_steps, m3_steps):
         drive_type = "w0"
     else:
         drive_type = drive_command = "Undefined Movement"
+        print("Undefined Movement")
         print(f"Motor Steps: {m1_steps}, {m2_steps}, {m3_steps}")
 
     return drive_type, drive_value
