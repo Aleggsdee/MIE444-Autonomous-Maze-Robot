@@ -21,14 +21,12 @@ BLUE = (0, 0, 255)
 MAX_SENSOR_READING = 6000.0 / 127.0
 MIN_SENSOR_READING = 3.0 / 2.54
 MIN_SENSOR_STD = 1
-MAX_SENSOR_STD = 3
+MAX_SENSOR_STD = 2.5
 certainty = 0
 
 
 # Simulation parameters
 NUM_PARTICLES = 5000
-FORWARD_VELOCITY = 4 * ppi  # units per second
-ANGULAR_VELOCITY = math.radians(120)  # 60 degrees per second
 
 # Noise parameters
 MOVEMENT_NOISE = 0.1
@@ -620,6 +618,7 @@ def steps_to_movement(m1_steps, m2_steps, m3_steps):
         drive_type = "w0"
     else:
         drive_type = drive_command = "Undefined Movement"
+        print(f"Motor Steps: {m1_steps}, {m2_steps}, {m3_steps}")
 
     return drive_type, drive_value
 

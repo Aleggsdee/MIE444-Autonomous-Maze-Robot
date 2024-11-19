@@ -143,7 +143,7 @@ w0_info = {
     'position': [0, 0],
     'rotation': 0,
     'visible': False,
-    'velocity': [0, 3],
+    'velocity': [0, 4.67],
     'ang_velocity': 0,
     'motors': [motors['m1'], motors['m2']],
     'motor_direction': [1, -1], # TODO: might need to check these positive negative values
@@ -156,7 +156,7 @@ d0_info = {
     'position': [0, 0],
     'rotation': 0,
     'visible': False,
-    'velocity': [-6, 0],
+    'velocity': [-4.67, 0],
     'ang_velocity': 0,
     'motors': [motors['m1'], motors['m2'], motors['m3']],
     'motor_direction': [1, 1, -1], # TODO: might need to check these positive negative values
@@ -170,7 +170,7 @@ r0_info = {
     'rotation': 0,
     'visible': False,
     'velocity': [0, 0],
-    'ang_velocity': 60,
+    'ang_velocity': 100,
     'motors': [motors['m1'], motors['m2'], motors['m3']],
     'motor_direction': [1, 1, 1],
     'bias': {'x': 0, 'y': 0, 'rotation': 0.01},
