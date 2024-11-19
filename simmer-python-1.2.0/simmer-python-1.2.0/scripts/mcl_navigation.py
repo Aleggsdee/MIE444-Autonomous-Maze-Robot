@@ -403,10 +403,11 @@ while running:
             
                 print("ROTATING")
                 if distance_t3 > FRONT_THRESHOLD + 1:
-                    transmit(packetize(f'w0:{min(distance_t3 - 3, 3)}')) # make sure this is right
+                    centering_distance = distance_t3 % 12 - 4
+                    transmit(packetize(f'w0:{centering_distance}')) # make sure this is right
                     [responses, time_rx] = receive()
-                    print(f"Sleeping for {abs(min(distance_t3 - 3, 3)) / forward_velocity} seconds")
-                    time.sleep(abs(min(distance_t3 - 3, 3)) / forward_velocity)
+                    print(f"Sleeping for {centering_distance / forward_velocity} seconds")
+                    time.sleep(abs(centering_distance) / forward_velocity)
                 
                 # update particle positions
                 transmit(packetize('m1,m2,m3'))
