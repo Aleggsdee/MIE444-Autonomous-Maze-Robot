@@ -9,7 +9,7 @@ VL53L0X sensors[SENSOR_COUNT];
 
 // Resetting I2C addresses for all sensors connected
 const int xshut_pins[SENSOR_COUNT] = { 2, 3, 4, 5, 6, 7, 8 };                                 // XSHUT pins for each sensor
-const uint8_t sensor_addresses[SENSOR_COUNT] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36 };  // New I2C addresses
+const uint8_t sensor_addresses[SENSOR_COUNT] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37 };  // New I2C addresses
 
 // Variables to track samples and timing
 unsigned long startTime = 0;
