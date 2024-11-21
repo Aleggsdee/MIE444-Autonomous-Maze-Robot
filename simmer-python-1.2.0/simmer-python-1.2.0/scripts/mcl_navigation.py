@@ -303,10 +303,10 @@ while running:
             particles = [Particle(grid, valid_positions) for _ in range(NUM_PARTICLES)]
             rotation_degrees = 0
         
-    transmit(packetize('t0,t1,t2,t3,t4,t5,t6,m1,m2,m3'))
+    transmit(packetize('t0,t1,t2,t3,t4,t5,t6,t7,m1,m2,m3'))
     [responses, time_rx] = receive()
-    lidar_distances = [float(response[1]) for response in responses[:7]]
-    motor_steps = [int(response[1]) for response in responses[7:]]
+    lidar_distances = [float(response[1]) for response in responses[:8]]
+    motor_steps = [int(response[1]) for response in responses[8:]]
     drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
     print(f"{drive_type}:{drive_value}")
     mh.update_particles(particles, drive_type, drive_value, grid)

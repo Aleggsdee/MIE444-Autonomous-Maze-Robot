@@ -76,7 +76,7 @@ void loop() {
       isDriving = false;
       
       // Turns steppers off to save power (uncomment line below)
-      //digitalWrite(ENABLE_PIN, HIGH);
+      digitalWrite(ENABLE_PIN, HIGH);
 
     }
 
@@ -220,9 +220,9 @@ void stop_steppers() {
 
 void initialize_steppers() {
   // Configure max speeds (in steps per second)
-  stepper1.setMaxSpeed(150);
-  stepper2.setMaxSpeed(150);
-  stepper3.setMaxSpeed(150);
+  stepper1.setMaxSpeed(600);
+  stepper2.setMaxSpeed(600);
+  stepper3.setMaxSpeed(600);
 
   // Then give stepper objects to MultiStepper to manage simultaneously
   steppers.addStepper(stepper1);
