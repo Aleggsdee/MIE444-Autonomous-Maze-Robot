@@ -280,17 +280,16 @@ def find_and_move_to_block():
     block_located = False # Flag variable to indicate whether block was found during search routine
     
     # Loop to repeat Step 1 to Step 3 until block is located (loop will either run once, or twice)
+    
+    # Step 1: Turn 90 degrees with the command r0:90
+    print("Turning 90 degrees.")
+    transmit(packetize('r0:90'))
+    [responses, time_rx] = receive()
+    time.sleep(90 / angular_velocity)
+    
     while not block_located:
-        
-        # Step 1: Turn 90 degrees with the command r0:90
-        print("Turning 90 degrees.")
-        transmit(packetize('r0:90'))
-        [responses, time_rx] = receive()
-        time.sleep(90 / angular_velocity)
-        
-        # Step 2: Perform a 180-degree scan in 5-degree increments, storing sensor differences
-        
-        print("Starting initial 180-degree scan in 5-degree increments.")
+        # Step 2: Perform a coarse sweep scan in increments, storing sensor differences
+        print(f"Starting initial {COARSE_SWEEP_ANGLE}-degree scan in {COARSE_SWEEP_INCREMENT}-degree increments.")
         angle_differences = []  # List to store (angle, difference) tuples
         for i in range(int(COARSE_SWEEP_ANGLE / COARSE_SWEEP_INCREMENT)):  # TODO this might be too fast/not giving sensor data enough time to update
             # Turn 5 degrees
@@ -326,9 +325,9 @@ def find_and_move_to_block():
             print("Moving to new location and attempting search routine again.")
             
             # Rotate 90, go forward 3 inches, rotate 45, then go 12 inches to new position 
-            transmit(packetize('r0:90')) # Points robot forward
+            transmit(packetize(f'r0:{COARSE_SWEEP_ANGLE - 90}')) # Points robot forward
             [responses, time_rx] = receive()
-            time.sleep(90 / angular_velocity)
+            time.sleep((COARSE_SWEEP_ANGLE - 90) / angular_velocity)
             
             transmit(packetize('w0:3')) # Clears the near corner
             [responses, time_rx] = receive()
@@ -342,7 +341,9 @@ def find_and_move_to_block():
             [responses, time_rx] = receive()
             time.sleep(8 / forward_velocity)
             
-            
+            transmit(packetize('r0:45')) # Points in general direction of unsearched zone
+            [responses, time_rx] = receive()
+            time.sleep(45 / angular_velocity)
         else:
             # Calculate the average angle
             avg_angle = sum(valid_angles) / len(valid_angles)

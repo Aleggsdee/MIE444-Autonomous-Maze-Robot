@@ -44,7 +44,7 @@ frame_end = ']'
 round_digits = 3
 
 # Block information
-block_position = [14, 5]        # Block starting location
+block_position = [21, 3]        # Block starting location
 block_rotation = 0              # Block rotation (deg)
 block_size = 1.5                  # Block side length in inches
 
