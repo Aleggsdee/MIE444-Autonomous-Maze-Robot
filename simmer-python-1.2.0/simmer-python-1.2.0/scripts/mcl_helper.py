@@ -20,14 +20,16 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 MAX_SENSOR_READING = 6000.0 / 127.0
 MIN_SENSOR_READING = 3.0 / 2.54
+MIN_SENSOR_STD = 1 # 1, 1.5, 2 (usually 1)
+MAX_SENSOR_STD = 3 # 2, 2.5, 3 (usually 2.5)
+certainty = 0
+
 
 # Simulation parameters
 NUM_PARTICLES = 5000
-FORWARD_VELOCITY = 4 * ppi  # units per second
-ANGULAR_VELOCITY = math.radians(120)  # 60 degrees per second
 
 # Noise parameters
-MOVEMENT_NOISE = 0.1
+MOVEMENT_NOISE = 0.025
 
 
 with open('sensor_data_3_ppi_15_beam_angle.pkl', 'rb') as f:
@@ -366,8 +368,6 @@ def estimate(particles):
     particles_y = [p.y for p in particles]
     particles_theta = [p.theta for p in particles]
     weights = [p.weight for p in particles]
-    print(len(particles_x))
-    print(len(weights))
     mean_x = np.average(particles_x, weights = weights)
     mean_y = np.average(particles_y, weights = weights)
     mean_theta = np.average(particles_theta, weights = weights)
@@ -386,6 +386,7 @@ def resample_particles(particles, grid, valid_positions, pred_x, pred_y):
     weights = [w / total_weight for w in weights]
     variance = particle_variance(particles, weights, pred_x, pred_y)
     certainty = ppi**2 * 2 / (variance)
+    print(f"Certainty: {certainty}")
     adjusted_num_particles = max(int(NUM_PARTICLES * max(1 - certainty, 0)), 1000)
 
     # resampling algorithm
@@ -393,7 +394,6 @@ def resample_particles(particles, grid, valid_positions, pred_x, pred_y):
         
     # resample from index
     particles = [particles[i] for i in indexes[:adjusted_num_particles]]
-    # print(len(particles))
     
     # Jitter the particles' positions and orientations to keep them close to their original pose
     def jitter_particle(particle):
@@ -461,14 +461,17 @@ class Particle:
             new_y = self.y + (drive_value + translation_noise) * math.sin(self.theta) * ppi
             new_theta = self.theta + angular_noise
             # angular noise scaled relative to drive value
+            
+            # print(f"w0:{drive_value} resulted in {max(abs(new_y - self.y) / ppi, abs(new_x - self.x) / ppi)} inches") # TODO DEBUGGING
         elif drive_type == 'd0':
             new_x = self.x + (drive_value + translation_noise) * math.cos(self.theta + math.radians(90)) * ppi
             new_y = self.y + (drive_value + translation_noise) * math.sin(self.theta + math.radians(90)) * ppi
             new_theta = self.theta + angular_noise
+            # print(f"d0:{drive_value} resulted in {max(abs(new_y - self.y) / ppi, abs(new_x - self.x) / ppi)} inches") # TODO DEBUGGING
         elif drive_type == 'r0':
             new_theta = self.theta + math.radians(drive_value) + angular_noise
         else:
-            print("not a drive command")
+            pass
 
         # Ensure particle stays within the drivable area
         if 0 <= int(new_x) < len(grid[0]) and 0 <= int(new_y) < len(grid) and grid[int(new_y)][int(new_x)] == 0:
@@ -476,11 +479,13 @@ class Particle:
             self.y = new_y
         self.theta = new_theta
         
+        
     def update_weight(self, lidar_distances, expected_distances):
         """Update particle weight based on the lidar readings."""
         # Calculate how closely the lidar readings match expected points        
+        sensor_std = MIN_SENSOR_STD + (MAX_SENSOR_STD - MIN_SENSOR_STD) * max(1 - certainty, 0)
         for lidar, expected in zip(lidar_distances, expected_distances):
-            self.weight *= normal_pdf(expected, lidar, 2.5 * ppi)
+            self.weight *= normal_pdf(expected, lidar, sensor_std * ppi)
         self.weight += 1.e-300
 
     def lidar_scan(self, grid):
@@ -617,6 +622,8 @@ def steps_to_movement(m1_steps, m2_steps, m3_steps):
         drive_type = "w0"
     else:
         drive_type = drive_command = "Undefined Movement"
+        print("Undefined Movement")
+        print(f"Motor Steps: {m1_steps}, {m2_steps}, {m3_steps}")
 
     return drive_type, drive_value
 

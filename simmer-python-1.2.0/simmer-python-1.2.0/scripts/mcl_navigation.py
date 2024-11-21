@@ -228,7 +228,7 @@ FRAMEEND = ']'
 CMD_DELIMITER = ','
 
 ### Set whether to use TCP (SimMeR) or serial (Arduino) ###
-SIMULATE = True
+SIMULATE = False
 
 
 
@@ -248,114 +248,7 @@ if SIMULATE:
     TRANSMIT_PAUSE = 0.3
 else:
     TRANSMIT_PAUSE = 0
-
-######################################### OBSTACLE AVOIDANCE IN CASE WE CAN'T LOCALIZE ###########################
-def obstacle_avoidance(duration):
-
-    LOOP_PAUSE_TIME = 0.05 # seconds
-
-    # Main loop
-    RUN_DEAD_RECKONING = True # If true, run this. If false, skip it
-
-    # Function to check all ToF sensors (will be in mm!)
-
-    BIG_FRONT_THRESHOLD = 7.5
-    SMALL_FRONT_THRESHOLD = 4
-    FRONT_THRESHOLD = SMALL_FRONT_THRESHOLD
-    SIDE_THRESHOLD = 2.75 # distance_t0, distance_t6
-    ANGLED_FRONT_THRESHOLD = 2.5 # distance_t2, distance_t4
-    ANGLED_SIDE_THRESHOLD = 2.75 # distance_t1, distance_t5
-
-
-    start_time = time.time()
-    transmit(packetize('xx'))
-    [responses, time_rx] = receive()
-    while RUN_DEAD_RECKONING:
-        # Pause for a little while so as to not spam commands insanely fast
-        time.sleep(LOOP_PAUSE_TIME)
-        
-        current_time = time.time()
-        if current_time - start_time > duration:
-            transmit(packetize('xx'))
-            [responses, time_rx] = receive()
-            # update particles
-            RUN_DEAD_RECKONING = False
-            break # replace with return
-        
-        
-        transmit(packetize('t0,t1,t2,t3,t4,t5,t6,m1,m2,m3'))
-        [responses, time_rx] = receive()
-        lidar_distances = [float(response[1]) for response in responses[:7]]
-        
-        distance_t0 = lidar_distances[0]
-        distance_t1 = lidar_distances[1]
-        distance_t2 = lidar_distances[2]
-        distance_t3 = lidar_distances[3]
-        distance_t4 = lidar_distances[4]
-        distance_t5 = lidar_distances[5]
-        distance_t6 = lidar_distances[6]
-        
-        
-        if distance_t0 > SIDE_THRESHOLD and distance_t1 > ANGLED_SIDE_THRESHOLD and distance_t2 > ANGLED_FRONT_THRESHOLD and distance_t3 > FRONT_THRESHOLD and distance_t4 > ANGLED_FRONT_THRESHOLD and distance_t5 > ANGLED_SIDE_THRESHOLD and distance_t6 > SIDE_THRESHOLD:
-            print('moving forward')
-            print('FRONT_THRESHOLD = ' + f'{FRONT_THRESHOLD}')
-            if FRONT_THRESHOLD == BIG_FRONT_THRESHOLD:
-                transmit(packetize('xx'))
-                [responses, time_rx] = receive()
-                # update particles
-                FRONT_THRESHOLD = SMALL_FRONT_THRESHOLD
-            transmit(packetize('w0:50'))
-            [responses, time_rx] = receive()
-        else:
-            if (distance_t3 < 2 or (distance_t4 < ANGLED_FRONT_THRESHOLD and distance_t2 < ANGLED_FRONT_THRESHOLD)) and FRONT_THRESHOLD != BIG_FRONT_THRESHOLD:
-                print('backing up')
-                print(FRONT_THRESHOLD)
-                transmit(packetize('xx'))
-                [responses, time_rx] = receive()
-                transmit(packetize('w0:-0.5'))
-                [responses, time_rx] = receive()
-                # update particles
-            elif (distance_t6 < SIDE_THRESHOLD or distance_t5 < ANGLED_SIDE_THRESHOLD or distance_t4 < ANGLED_FRONT_THRESHOLD) and FRONT_THRESHOLD != BIG_FRONT_THRESHOLD:
-                print('moving left')
-                transmit(packetize('xx'))
-                [responses, time_rx] = receive()
-                transmit(packetize('d0:-0.5'))
-                [responses, time_rx] = receive()
-                # update particles
-                transmit(packetize('r0:-15'))
-                [responses, time_rx] = receive()
-                # update particles
-            elif (distance_t0 < SIDE_THRESHOLD or distance_t1 < ANGLED_SIDE_THRESHOLD or distance_t2 < ANGLED_FRONT_THRESHOLD) and FRONT_THRESHOLD != BIG_FRONT_THRESHOLD:
-                print('moving right')
-                transmit(packetize('xx'))
-                [responses, time_rx] = receive()
-                transmit(packetize('d0:0.5'))
-                [responses, time_rx] = receive()
-                # update particles
-                transmit(packetize('r0:15'))
-                [responses, time_rx] = receive()
-                # update particles
-            elif distance_t3 < FRONT_THRESHOLD and FRONT_THRESHOLD != BIG_FRONT_THRESHOLD:
-                transmit(packetize('xx'))
-                [responses, time_rx] = receive()
-                # update particles
-                if distance_t4 > distance_t0:
-                    print('rotating CW')
-                    transmit(packetize('r0:90'))
-                    [responses, time_rx] = receive()
-                else:
-                    print('rotating CCW')
-                    transmit(packetize('r0:-90'))
-                    [responses, time_rx] = receive()     
-                # update particles 
-                FRONT_THRESHOLD = BIG_FRONT_THRESHOLD
-                print('FRONT_THRESHOLD = ' + f'{FRONT_THRESHOLD}')
-            else:
-                transmit(packetize('r0:30'))
-                [responses, time_rx] = receive()  
-
-
-
+                  
 
 # Initialize window and particles
 particles = [Particle(grid, valid_positions) for _ in range(NUM_PARTICLES)]
@@ -383,12 +276,13 @@ rotation_degrees = 0
 # Navigation variables
 arrived_at_loading_zone = False
 navigation_matrix = mh.init_loading_zone_grid()
-angular_velocity = 60 # deg/s
+angular_velocity = 90.0 # actually ~100 deg/s but we estimate slower just to be safe
+forward_velocity = 4.0 # actually 4.67 in/s but we estimate slower just to be safe
 
 # Obstacle avoidance variables
-FRONT_THRESHOLD = 2 # distance_t3
+FRONT_THRESHOLD = 3.5 # distance_t3
 SIDE_THRESHOLD = 2 # distance_t0, distance_t6
-ANGLED_FRONT_THRESHOLD = 2 # distance_t2, distance_t4
+ANGLED_FRONT_THRESHOLD = 3.5 # distance_t2, distance_t4
 ANGLED_SIDE_THRESHOLD = 2 # distance_t1, distance_t5
 
 clock = pygame.time.Clock()
@@ -402,10 +296,10 @@ while running:
         if rotation_degrees <= 460:
             transmit(packetize('r0:10'))
             [responses, time_rx] = receive()
-            time.sleep(0.75)
+            time.sleep(1)
+            # can add a time.sleep() here if necessary
         else:
             # run obstacle for a few seconds, then rotate to localize again
-            obstacle_avoidance(25)
             particles = [Particle(grid, valid_positions) for _ in range(NUM_PARTICLES)]
             rotation_degrees = 0
         
@@ -414,7 +308,7 @@ while running:
     lidar_distances = [float(response[1]) for response in responses[:7]]
     motor_steps = [int(response[1]) for response in responses[7:]]
     drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
-    print(f"Drive Value: {drive_value}")
+    print(f"{drive_type}:{drive_value}")
     mh.update_particles(particles, drive_type, drive_value, grid)
     rotation_degrees += drive_value
 
@@ -430,19 +324,16 @@ while running:
         particle_lidar_distances = particle.lidar_scan_fast()
         particle.update_weight(particle_lidar_distances, lidar_distances)
     
-    if drive_value != 0 or True:
+    if motor_steps[0] != 0 or motor_steps[1] != 0 or motor_steps[2] != 0:
         particles, variance = mh.resample_particles(particles, grid, valid_positions, pred_x, pred_y)
         pred_x, pred_y, pred_theta = mh.estimate(particles)
         pred_theta = mh.normalize_angle(pred_theta * 180 / math.pi)
-        angular_variance = mh.particle_angular_variance(particles, pred_theta)
         print(f"Particle Position: {pred_x / ppi - 1}, {pred_y / ppi - 1}")
         print(f"Particle Angle: {pred_theta}")
-        print(f"Angular Variance: {angular_variance}")
-        if not is_localized and variance < 1:
+        print(f"Particle Position Variance: {variance}")
+        if not is_localized and variance < 3: # usually 3
             is_localized = True
             print("LOCALIZED!")
-            # transmit(packetize('l'))
-            # [responses, time_rx] = receive()
             
             navigation_dir = mh.normalize_angle(navigation_matrix[int(pred_y / ppi - 1)][int(pred_x / ppi - 1)]) # to set 360 to 0
             print(f"Navigation Direction: {navigation_dir}")
@@ -450,34 +341,9 @@ while running:
                 angle_difference = mh.shortest_rotation_distance(navigation_dir, pred_theta)
                 transmit(packetize(f'r0:{angle_difference}'))
                 [responses, time_rx] = receive()
-                time.sleep(abs(angle_difference) / angular_velocity + 0.25)
-        # elif not is_localized and angular_variance < 10:
-        #     navigation_dir = mh.normalize_angle(navigation_matrix[int(particles[0].y / ppi - 1)][int(particles[0].x / ppi - 1)]) # to set 360 to 0
-        #     print(f"Navigation Direction: {navigation_dir}")
-        #     angle_difference = mh.shortest_rotation_distance(navigation_dir, pred_theta)
-        #     transmit(packetize(f'r0:{angle_difference}'))
-        #     [responses, time_rx] = receive()
-        #     time.sleep(abs(angle_difference) / angular_velocity + 0.25)
-            
-        #     # update particle positions
-        #     transmit(packetize('m1,m2,m3'))
-        #     [responses, time_rx] = receive()
-        #     motor_steps = [int(response[1]) for response in responses]
-        #     drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
-        #     mh.update_particles(particles, drive_type, drive_value, grid)
-            
-        #     transmit(packetize('w0:12'))
-        #     [responses, time_rx] = receive()
-        #     time.sleep(5)
-            
-        #     # update particle positions
-        #     transmit(packetize('m1,m2,m3'))
-        #     [responses, time_rx] = receive()
-        #     motor_steps = [int(response[1]) for response in responses]
-        #     drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
-        #     mh.update_particles(particles, drive_type, drive_value, grid)
-            
-        #     rotation_degrees = 0
+                time.sleep(abs(angle_difference / angular_velocity) + 0.25)
+                continue
+                
             
             
 
@@ -490,19 +356,42 @@ while running:
         if navigation_dir == 7 or navigation_dir == 8: # set loading zone grids to 7 and drop off zone grids to 8
             transmit(packetize('xx'))
             [responses, time_rx] = receive()
-            if lidar_distances[3] > FRONT_THRESHOLD + 5:
-                transmit(packetize('w0:4'))
-                [responses, time_rx] = receive()
-                time.sleep(1)
+            
+            # update particle positions
+            transmit(packetize('m1,m2,m3'))
+            [responses, time_rx] = receive()
+            motor_steps = [int(response[1]) for response in responses]
+            drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
+            mh.update_particles(particles, drive_type, drive_value, grid)          
+            pred_x, pred_y, pred_theta = mh.estimate(particles)
+            pred_theta = mh.normalize_angle(pred_theta * 180 / math.pi)
                 
             if not arrived_at_loading_zone:
                 arrived_at_loading_zone = True
                 print("arrived at loading zone")
-                time.sleep(2)
+                time.sleep(1)
                 navigation_matrix = mh.init_drop_off_zone_grid1() ## TODO MAKE SURE YOU CHANGE THIS FOR CORRECT DROP OFF!!!!!
+                
+                navigation_dir = mh.normalize_angle(navigation_matrix[int(pred_y / ppi - 1)][int(pred_x / ppi - 1)]) # to set 360 to 0
+                print(f"Navigation Direction: {navigation_dir}")
+                if navigation_dir == 0 or navigation_dir == 90 or navigation_dir == 180 or navigation_dir == 270:
+                    angle_difference = mh.shortest_rotation_distance(navigation_dir, pred_theta)
+                    print(f"pred_theta = {pred_theta}, navigation_dir = {navigation_dir}")
+                    transmit(packetize(f'r0:{angle_difference}'))
+                    [responses, time_rx] = receive()
+                    time.sleep(abs(angle_difference / angular_velocity) + 0.25)
+                    continue
             else:
                 print("arrived at drop off zone")
                 running = False
+                
+                distance_t3 = lidar_distances[3]
+                centering_distance = distance_t3 % 12 - 4.5
+                if distance_t3 > FRONT_THRESHOLD + 1 and centering_distance > 0:
+                    transmit(packetize(f'w0:{centering_distance}'))
+                    [responses, time_rx] = receive()
+                    time.sleep(abs(centering_distance) / forward_velocity + 0.25)
+                
                 break
         
         # Obstacle avoidance/Navigation
@@ -515,35 +404,40 @@ while running:
         distance_t6 = lidar_distances[6]
         
         
-        # TODO: add updates to particle positions every time xx is called or new drive command type is called
         # Navigation (forward drive only happens here!)       
         if distance_t0 > SIDE_THRESHOLD and distance_t1 > ANGLED_SIDE_THRESHOLD and distance_t2 > ANGLED_FRONT_THRESHOLD and distance_t3 > FRONT_THRESHOLD and distance_t4 > ANGLED_FRONT_THRESHOLD and distance_t5 > ANGLED_SIDE_THRESHOLD and distance_t6 > SIDE_THRESHOLD:
             angle_difference = mh.shortest_rotation_distance(navigation_dir, pred_theta)
-            if abs(angle_difference) <= 15:  
+            if abs(angle_difference) <= 20:  
                 transmit(packetize('w0:50'))
                 [responses, time_rx] = receive()
             else:
                 transmit(packetize('xx'))
                 [responses, time_rx] = receive()
-                if distance_t3 > FRONT_THRESHOLD + 2:
-                    transmit(packetize('w0:2'))
-                    [responses, time_rx] = receive()
-                    time.sleep(1)
+                time.sleep(0.25)
                 
                 # update particle positions
                 transmit(packetize('m1,m2,m3'))
                 [responses, time_rx] = receive()
                 motor_steps = [int(response[1]) for response in responses]
                 drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
-                mh.update_particles(particles, drive_type, drive_value, grid)
-                
-                transmit(packetize(f'r0:{angle_difference}'))
-                [responses, time_rx] = receive()
-                time.sleep(abs(angle_difference) / angular_velocity + 0.25)
+                mh.update_particles(particles, drive_type, drive_value, grid)       
+                pred_x, pred_y, pred_theta = mh.estimate(particles)
+                pred_theta = mh.normalize_angle(pred_theta * 180 / math.pi)      
+            
+                print("ROTATING")
+                centering_distance = distance_t3 % 12 - 6
+                if distance_t3 > FRONT_THRESHOLD + 1 and centering_distance > 0:
+                    transmit(packetize(f'w0:{centering_distance}'))
+                    [responses, time_rx] = receive()
+                else:
+                    transmit(packetize(f'r0:{angle_difference}'))
+                    [responses, time_rx] = receive()
+                    time.sleep(abs(angle_difference / angular_velocity) + 0.5)
         else:
             if distance_t3 < FRONT_THRESHOLD or (distance_t2 < ANGLED_FRONT_THRESHOLD and distance_t4 < ANGLED_FRONT_THRESHOLD):
                 transmit(packetize('xx'))
                 [responses, time_rx] = receive()
+                time.sleep(0.25)
                 
                 # update particle positions
                 transmit(packetize('m1,m2,m3'))
@@ -551,9 +445,12 @@ while running:
                 motor_steps = [int(response[1]) for response in responses]
                 drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
                 mh.update_particles(particles, drive_type, drive_value, grid)
+                pred_x, pred_y, pred_theta = mh.estimate(particles)
+                pred_theta = mh.normalize_angle(pred_theta * 180 / math.pi)
                 
                 transmit(packetize('w0:-0.5'))
                 [responses, time_rx] = receive()
+                time.sleep(0.25)
             elif distance_t6 < SIDE_THRESHOLD or distance_t5 < ANGLED_SIDE_THRESHOLD or distance_t4 < ANGLED_FRONT_THRESHOLD:
                 transmit(packetize('xx'))
                 [responses, time_rx] = receive()
@@ -564,20 +461,26 @@ while running:
                 motor_steps = [int(response[1]) for response in responses]
                 drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
                 mh.update_particles(particles, drive_type, drive_value, grid)
+                pred_x, pred_y, pred_theta = mh.estimate(particles)
+                pred_theta = mh.normalize_angle(pred_theta * 180 / math.pi)
                     
                 transmit(packetize('d0:-0.25'))
                 [responses, time_rx] = receive()
-                # time.sleep(0.25) # make sure drive command finishes
+                time.sleep(0.25) # make sure drive command finishes
                 
-                # hardcode particle position update
+                # update particle positions
                 transmit(packetize('m1,m2,m3'))
                 [responses, time_rx] = receive()
-                mh.update_particles(particles, "d0", -0.25, grid)
+                motor_steps = [int(response[1]) for response in responses]
+                drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
+                mh.update_particles(particles, drive_type, drive_value, grid)
+                pred_x, pred_y, pred_theta = mh.estimate(particles)
+                pred_theta = mh.normalize_angle(pred_theta * 180 / math.pi)
                 
-                transmit(packetize('r0:-2.5'))
+                transmit(packetize('r0:-2'))
                 [responses, time_rx] = receive()
-                # time.sleep(0.25) # make sure drive command finishes
-                # update hardcode
+                time.sleep(0.25) # make sure drive command finishes
+                
             elif distance_t0 < SIDE_THRESHOLD or distance_t1 < ANGLED_SIDE_THRESHOLD or distance_t2 < ANGLED_FRONT_THRESHOLD:
                 transmit(packetize('xx'))
                 [responses, time_rx] = receive()
@@ -588,19 +491,25 @@ while running:
                 motor_steps = [int(response[1]) for response in responses]
                 drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
                 mh.update_particles(particles, drive_type, drive_value, grid)
+                pred_x, pred_y, pred_theta = mh.estimate(particles)
+                pred_theta = mh.normalize_angle(pred_theta * 180 / math.pi)
                 
                 transmit(packetize('d0:0.25'))
                 [responses, time_rx] = receive()
                 time.sleep(0.25) # make sure drive command finishes
                 
-                # hardcode particle position update
+                # update particle positions
                 transmit(packetize('m1,m2,m3'))
                 [responses, time_rx] = receive()
-                mh.update_particles(particles, "d0", 0.25, grid)
+                motor_steps = [int(response[1]) for response in responses]
+                drive_type, drive_value = mh.steps_to_movement(motor_steps[0], motor_steps[1], motor_steps[2])
+                mh.update_particles(particles, drive_type, drive_value, grid)
+                pred_x, pred_y, pred_theta = mh.estimate(particles)
+                pred_theta = mh.normalize_angle(pred_theta * 180 / math.pi)
                 
-                transmit(packetize('r0:2.5'))
+                transmit(packetize('r0:2'))
                 [responses, time_rx] = receive()
-                # time.sleep(0.25) # make sure drive command finishes
+                time.sleep(0.25) # make sure drive command finishes
             else: # this should never happen in theory
                 print("womp womp")
 
