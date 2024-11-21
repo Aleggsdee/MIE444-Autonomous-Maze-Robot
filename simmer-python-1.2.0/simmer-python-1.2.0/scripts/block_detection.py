@@ -217,7 +217,7 @@ FRAMEEND = ']'
 CMD_DELIMITER = ','
 
 ### Set whether to use TCP (SimMeR) or serial (Arduino) ###
-SIMULATE = False
+SIMULATE = True
 
 
 
@@ -234,7 +234,7 @@ except serial.SerialException:
 
 ### Pause time after sending messages
 if SIMULATE:
-    TRANSMIT_PAUSE = 0.05
+    TRANSMIT_PAUSE = 0.1
 else:
     TRANSMIT_PAUSE = 0
 
@@ -262,6 +262,171 @@ while RUN_COMMUNICATION_CLIENT:
 
 
 
+def find_and_move_to_block():
+    """
+    Function to scan for a block using sensors t3 (top) and t7 (bottom),
+    rotate back to the position with the maximum difference, and move towards the block
+    in two stages: first to 4 inches away, then re-scan and adjust, and finally move to less than 1 inch away.
+    """
+    # Step 1: Turn 90 degrees with the command w0:90
+    print("Turning 90 degrees.")
+    transmit(packetize('r0:90'))
+    [responses, time_rx] = receive()
+    time.sleep(2)
+
+    # Step 2: Perform a 180-degree scan in 5-degree increments, storing sensor differences
+    print("Starting initial 180-degree scan in 5-degree increments.")
+    angle_differences = []  # List to store (angle, difference) tuples
+    for i in range(36):  # 180 degrees / 5 degrees per increment
+        # Turn 5 degrees
+        transmit(packetize('r0:-5'))
+        [responses, time_rx] = receive()
+
+        # Read sensors t3 (top) and t7 (bottom)
+        sensor_t3_reading = get_sensor_reading('t3')
+        sensor_t7_reading = get_sensor_reading('t7')
+
+        if sensor_t3_reading is None or sensor_t7_reading is None:
+            print(f"Failed to read sensors at angle {5 * (i + 1)} degrees. Storing difference as 0.")
+            difference = 0
+        else:
+            # Calculate the difference
+            difference = abs(sensor_t7_reading - sensor_t3_reading)
+            print(f"Sensor difference at angle {5 * (i + 1)} degrees: {difference} inches")
+
+        # Store the angle and the difference
+        angle_differences.append((5 * (i + 1), difference))
+
+    # Step 3: Find the angle with the maximum difference
+    
+    # CHANGE: Find average angle for which the delta is above 1.5"
+    valid_angles = [angle for angle, diff in angle_differences if diff > 1.5]
+
+    if not valid_angles:
+        print("No valid sensor differences found above 1.5 inches. Block may not be in the vicinity.")
+        return
+    else:
+        # Calculate the average angle
+        avg_angle = sum(valid_angles) / len(valid_angles)
+        print(f"Average angle with sensor difference above 1.5 inches: {avg_angle} degrees.")
+        
+
+    # Step 4: Rotate back to the angle with the maximum difference
+    # Calculate the angle to rotate back (since we've already turned 180 degrees)
+    rotation_angle = (180 - avg_angle)
+    print(f"Rotating back {rotation_angle} degrees to face the block.")
+    transmit(packetize(f'r0:{rotation_angle}'))
+    [responses, time_rx] = receive()
+    time.sleep(2)
+
+    # Step 5: Move forward until the bottom sensor reads less than or equal to 4 inches (Stage 1)
+    print("Stage 1: Moving towards the block until 4 inches away.")
+    
+    transmit(packetize('t7'))
+    [responses, time_rx] = receive()    
+    distance_t7 = float(responses[0][1])
+    print(f"Moving Forward: {distance_t7 - 3} inches")
+    
+    transmit(packetize(f'w0:{distance_t7 - 3}'))
+    [responses, time_rx] = receive()
+    
+    time.sleep((distance_t7 - 3) / 4) # 4 inches/sec speed
+
+    # Step 6: Re-scan and adjust alignment (repeat Steps 2 to 4)
+    print("Starting adjustment scan to refine alignment.")
+
+    # Optional: Turn 30 degrees before starting the adjustment scan if needed
+    print("Turning 30 degrees for adjustment scan.")
+    transmit(packetize('r0:30'))
+    [responses, time_rx] = receive()
+
+    # Repeat the 180-degree scan in 5-degree increments
+    angle_differences = []
+    for i in range(60):  # 180 degrees / 5 degrees per increment
+        # Turn 5 degrees
+        transmit(packetize('r0:-1'))
+        [responses, time_rx] = receive()
+
+        # Read sensors t3 and t7
+        sensor_t3_reading = get_sensor_reading('t3')
+        sensor_t7_reading = get_sensor_reading('t7')
+
+        if sensor_t3_reading is None or sensor_t7_reading is None:
+            print(f"Failed to read sensors at adjustment angle {1 * (i + 1)} degrees. Storing difference as 0.")
+            difference = 0
+        else:
+            # Calculate the difference
+            difference = abs(sensor_t7_reading - sensor_t3_reading)
+            print(f"Sensor difference at adjustment angle {1 * (i + 1)} degrees: {difference} inches")
+
+        # Store the angle and the difference
+        angle_differences.append((1 * (i + 1), difference))
+
+    # CHANGE: Find average angle for which the delta is above 1.5"
+    valid_angles = [angle for angle, diff in angle_differences if diff > 1.5]
+
+    if not valid_angles:
+        print("No valid sensor differences found above 1.5 inches. Block may not be in the vicinity.")
+        return
+    else:
+        # Calculate the average angle
+        avg_angle = sum(valid_angles) / len(valid_angles)
+        print(f"Average angle with sensor difference above 1.5 inches: {avg_angle} degrees.")
+        
+
+    # Step 6: Rotate back to the angle with the maximum difference
+    # Calculate the angle to rotate back (since we've already turned 180 degrees)
+    rotation_angle = (180 - avg_angle)
+    print(f"Rotating back {avg_angle} degrees to refine alignment.")
+    transmit(packetize(f'r0:{avg_angle}'))
+    [responses, time_rx] = receive()
+
+    time.sleep(2)
+    
+    # Step 7: Move forward until the bottom sensor reads less than 1 inch (Stage 2)
+    print("Stage 2: Drive to the block.")
+    
+    transmit(packetize('t7'))
+    [responses, time_rx] = receive()    
+    distance_t7 = float(responses[0][1])
+    print(f"Moving Forward: {distance_t7 + 0.5} inches")
+    
+    ################# LOWER THE GRIPPER HERE!!!!! ########################
+    
+    transmit(packetize(f'w0:{distance_t7 + 0.5}'))
+    [responses, time_rx] = receive()
+    
+    time.sleep((distance_t7 - 3) / 4) # 4 inches/sec speed
+
+def get_sensor_reading(sensor_id):
+    """
+    Helper function to get a reading from a specific sensor.
+    """
+    packet_tx = packetize(sensor_id)
+    if packet_tx:
+        transmit(packet_tx)
+        [responses, time_rx] = receive()
+        if responses and responses[0][0] == sensor_id:
+            try:
+                print(f"{sensor_id} Sensor Readings: {responses[0][1]}")
+                return float(responses[0][1])
+            except ValueError:
+                print(f"Invalid reading from sensor {sensor_id}: {responses[0][1]}")
+                return None
+        else:
+            print(f"Unexpected response for {sensor_id}: {responses}")
+            return None
+    else:
+        print(f"Failed to packetize command for {sensor_id}")
+        return None
+    
+    
+    
+    
+        
+            
+    
+    
 ############## Main section for the open loop control algorithm ##############
 # The sequence of commands to run
 LOOP_PAUSE_TIME = 0.1 # seconds
@@ -272,28 +437,5 @@ RUN_DEAD_RECKONING = True # If true, run this. If false, skip it
 while RUN_DEAD_RECKONING:
     # Pause for a little while so as to not spam commands insanely fast
     time.sleep(LOOP_PAUSE_TIME)
-    transmit(packetize('r0:360'))
-    [responses, time_rx] = receive()
-    time.sleep(1)
-    transmit(packetize('xx'))
-    # print("stop")
-    [responses, time_rx] = receive()
-    # transmit(packetize('d0:-1'))
-    # [responses, time_rx] = receive()
-    # transmit(packetize('w0:-1'))
-    # [responses, time_rx] = receive()
-    # transmit(packetize('r0:360'))
-    # [responses, time_rx] = receive()  
-    RUN_DEAD_RECKONING = False
-
-    
-    
-    
-    
-    
-    
-    
-        
-            
-    
-    
+    find_and_move_to_block()
+    break
