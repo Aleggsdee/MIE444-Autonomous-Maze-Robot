@@ -207,8 +207,8 @@ PORT_TX = 61200         # The port used by the *CLIENT* to receive
 PORT_RX = 61201         # The port used by the *CLIENT* to send data
 
 ### Serial Setup ###
-BAUDRATE = 9600         # Baudrate in bps
-PORT_SERIAL = 'COM6'    # COM port identification
+BAUDRATE = 115200         # Baudrate in bps
+PORT_SERIAL = 'COM5'    # COM port identification
 TIMEOUT_SERIAL = 1      # Serial port timeout, in seconds
 
 ### Packet Framing values ###
@@ -267,6 +267,9 @@ MIN_DELTA = 1.5 # minimum difference in top and bottom sensor readings to be con
 FINE_SWEEP_ANGLE = 60 # degrees
 FINE_SWEEP_INCREMENT = 2 # degrees
 
+angular_velocity = 90.0 # rad/s (actually ~100 rad/s)
+forward_velocity = 4.0 # in/s (actually ~4.67 in/s)
+
 def find_and_move_to_block():
     """
     Function to scan for a block using sensors t3 (top) and t7 (bottom),
@@ -283,20 +286,24 @@ def find_and_move_to_block():
         print("Turning 90 degrees.")
         transmit(packetize('r0:90'))
         [responses, time_rx] = receive()
-        time.sleep(2)
+        time.sleep(90 / angular_velocity)
         
         # Step 2: Perform a 180-degree scan in 5-degree increments, storing sensor differences
         
         print("Starting initial 180-degree scan in 5-degree increments.")
         angle_differences = []  # List to store (angle, difference) tuples
-        for i in range(int(COARSE_SWEEP_ANGLE / COARSE_SWEEP_INCREMENT)):  # 180 degrees / 5 degrees per increment
+        for i in range(int(COARSE_SWEEP_ANGLE / COARSE_SWEEP_INCREMENT)):  # TODO this might be too fast/not giving sensor data enough time to update
             # Turn 5 degrees
             transmit(packetize(f'r0:-{COARSE_SWEEP_INCREMENT}'))
             [responses, time_rx] = receive()
+            time.sleep(COARSE_SWEEP_INCREMENT / angular_velocity)
 
             # Read sensors t3 (top) and t7 (bottom)
-            sensor_t3_reading = min(get_sensor_reading('t3'), MAX_BOTTOM_SENSOR_READING)
-            sensor_t7_reading = min(get_sensor_reading('t7'), MAX_BOTTOM_SENSOR_READING)
+            transmit(packetize('t0,t1,t2,t3,t4,t5,t6,t7,m1,m2,m3'))
+            [responses, time_rx] = receive()
+            ToF_distances = [float(response[1]) for response in responses[:8]]
+            sensor_t3_reading = min(ToF_distances[3], MAX_BOTTOM_SENSOR_READING)
+            sensor_t7_reading = min(ToF_distances[7], MAX_BOTTOM_SENSOR_READING)
 
             if sensor_t3_reading is None or sensor_t7_reading is None:
                 print(f"Failed to read sensors at angle {COARSE_SWEEP_INCREMENT * (i + 1)} degrees. Storing difference as 0.")
@@ -321,19 +328,19 @@ def find_and_move_to_block():
             # Rotate 90, go forward 3 inches, rotate 45, then go 12 inches to new position 
             transmit(packetize('r0:90')) # Points robot forward
             [responses, time_rx] = receive()
-            time.sleep(1)
+            time.sleep(90 / angular_velocity)
             
             transmit(packetize('w0:3')) # Clears the near corner
             [responses, time_rx] = receive()
-            time.sleep(1)
+            time.sleep(3 / forward_velocity)
             
             transmit(packetize('r0:45')) # Points in general direction of unsearched zone
             [responses, time_rx] = receive()
-            time.sleep(2)
+            time.sleep(45 / angular_velocity)
             
             transmit(packetize('w0:8')) # Moves forward to get block within sensor range
             [responses, time_rx] = receive()
-            time.sleep(2)
+            time.sleep(8 / forward_velocity)
             
             
         else:
@@ -350,20 +357,21 @@ def find_and_move_to_block():
     print(f"Rotating back {rotation_angle} degrees to face the block.")
     transmit(packetize(f'r0:{rotation_angle}'))
     [responses, time_rx] = receive()
-    time.sleep(2)
+    time.sleep(rotation_angle / angular_velocity)
 
     # Step 5: Move forward closer to block for fine sweep search (Stage 1)
     print("Stage 1: Moving closer towards block.")
     
-    transmit(packetize('t7'))
-    [responses, time_rx] = receive()    
-    distance_t7 = float(responses[0][1])
-    print(f"Moving Forward: {distance_t7 - 3} inches")
+    transmit(packetize('t0,t1,t2,t3,t4,t5,t6,t7,m1,m2,m3'))
+    [responses, time_rx] = receive()
+    ToF_distances = [float(response[1]) for response in responses[:8]]
+    sensor_t7_reading = min(ToF_distances[7], MAX_BOTTOM_SENSOR_READING)
+    print(f"Moving Forward: {sensor_t7_reading - 3} inches")
     
-    transmit(packetize(f'w0:{distance_t7 - 3}'))
+    transmit(packetize(f'w0:{sensor_t7_reading - 3}'))
     [responses, time_rx] = receive()
     
-    time.sleep((distance_t7 - 3) / 4) # 4 inches/sec speed
+    time.sleep(abs(sensor_t7_reading - 3) / forward_velocity)
 
     # Step 6: Re-scan and adjust alignment (repeat Steps 2 to 4)
     print("Starting adjustment scan to refine alignment.")
@@ -372,7 +380,7 @@ def find_and_move_to_block():
     print(f"Turning {FINE_SWEEP_ANGLE / 2} degrees for adjustment scan.")
     transmit(packetize(f'r0:{FINE_SWEEP_ANGLE / 2}'))
     [responses, time_rx] = receive()
-    time.sleep(1)
+    time.sleep((FINE_SWEEP_ANGLE / 2) / angular_velocity)
 
     # Perform fine sweep scan
     angle_differences = []
@@ -380,10 +388,14 @@ def find_and_move_to_block():
         # Turn 1 degree
         transmit(packetize(f'r0:-{FINE_SWEEP_INCREMENT}'))
         [responses, time_rx] = receive()
+        time.sleep(FINE_SWEEP_INCREMENT / angular_velocity)
 
         # Read sensors t3 and t7
-        sensor_t3_reading = min(get_sensor_reading('t3'),MAX_BOTTOM_SENSOR_READING)
-        sensor_t7_reading = min(get_sensor_reading('t7'),MAX_BOTTOM_SENSOR_READING)
+        transmit(packetize('t0,t1,t2,t3,t4,t5,t6,t7,m1,m2,m3'))
+        [responses, time_rx] = receive()
+        ToF_distances = [float(response[1]) for response in responses[:8]]
+        sensor_t3_reading = min(ToF_distances[3], MAX_BOTTOM_SENSOR_READING)
+        sensor_t7_reading = min(ToF_distances[7], MAX_BOTTOM_SENSOR_READING)
 
         if sensor_t3_reading is None or sensor_t7_reading is None:
             print(f"Failed to read sensors at adjustment angle {FINE_SWEEP_INCREMENT * (i + 1)} degrees. Storing difference as 0.")
@@ -410,54 +422,28 @@ def find_and_move_to_block():
     # Step 6: Rotate back to the angle with the maximum difference
     # Calculate the angle to rotate back (since we've already turned 180 degrees)
     rotation_angle = (FINE_SWEEP_ANGLE - avg_angle)
-    print(f"Rotating back {avg_angle} degrees to refine alignment.")
-    transmit(packetize(f'r0:{avg_angle}'))
+    print(f"Rotating back {rotation_angle} degrees to refine alignment.")
+    transmit(packetize(f'r0:{rotation_angle}'))
     [responses, time_rx] = receive()
-
-    time.sleep(2)
+    time.sleep(rotation_angle / angular_velocity)
     
     # Step 7: Move forward until the bottom sensor reads less than 1 inch (Stage 2)
     print("Stage 2: Drive to the block.")
     
-    transmit(packetize('t7'))
-    [responses, time_rx] = receive()    
-    distance_t7 = float(responses[0][1])
-    print(f"Moving Forward: {distance_t7 + 0.5} inches")
+    transmit(packetize('t0,t1,t2,t3,t4,t5,t6,t7,m1,m2,m3'))
+    [responses, time_rx] = receive()
+    ToF_distances = [float(response[1]) for response in responses[:8]]
+    sensor_t7_reading = min(ToF_distances[7], MAX_BOTTOM_SENSOR_READING)
+    print(f"Moving Forward: {sensor_t7_reading + 0.5} inches")
     
     ################# LOWER THE GRIPPER HERE!!!!! ########################
     
-    transmit(packetize(f'w0:{distance_t7 + 0.5}'))
+    transmit(packetize(f'w0:{sensor_t7_reading + 0.5}'))
     [responses, time_rx] = receive()
-    
-    time.sleep(abs(distance_t7 - 3) / 4) # 4 inches/sec speed
+    time.sleep(abs(sensor_t7_reading - 3) / 4) # 4 inches/sec speed 
 
-def get_sensor_reading(sensor_id):
-    """
-    Helper function to get a reading from a specific sensor.
-    """
-    packet_tx = packetize(sensor_id)
-    if packet_tx:
-        transmit(packet_tx)
-        [responses, time_rx] = receive()
-        if responses and responses[0][0] == sensor_id:
-            try:
-                print(f"{sensor_id} Sensor Readings: {responses[0][1]}")
-                return float(responses[0][1])
-            except ValueError:
-                print(f"Invalid reading from sensor {sensor_id}: {responses[0][1]}")
-                return None
-        else:
-            print(f"Unexpected response for {sensor_id}: {responses}")
-            return None
-    else:
-        print(f"Failed to packetize command for {sensor_id}")
-        return None
-    
-    
-    
-    
-        
-            
+
+
     
     
 ############## Main section for the open loop control algorithm ##############
