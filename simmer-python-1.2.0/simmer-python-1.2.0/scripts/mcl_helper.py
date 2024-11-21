@@ -20,8 +20,8 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 MAX_SENSOR_READING = 6000.0 / 127.0
 MIN_SENSOR_READING = 3.0 / 2.54
-MIN_SENSOR_STD = 1
-MAX_SENSOR_STD = 2.5
+MIN_SENSOR_STD = 1 # 1, 1.5, 2 (usually 1)
+MAX_SENSOR_STD = 3 # 2, 2.5, 3 (usually 2.5)
 certainty = 0
 
 
@@ -449,8 +449,7 @@ class Particle:
 
     def move(self, drive_type, drive_value, grid):
         # Add movement noise
-        # translation_noise = random.gauss(0, MOVEMENT_NOISE) * drive_value
-        translation_noise = 0
+        translation_noise = random.gauss(0, MOVEMENT_NOISE) * drive_value
         angular_noise = random.gauss(0, math.radians(0.02)) * drive_value
 
         new_x = 0
@@ -462,10 +461,13 @@ class Particle:
             new_y = self.y + (drive_value + translation_noise) * math.sin(self.theta) * ppi
             new_theta = self.theta + angular_noise
             # angular noise scaled relative to drive value
+            
+            # print(f"w0:{drive_value} resulted in {max(abs(new_y - self.y) / ppi, abs(new_x - self.x) / ppi)} inches") # TODO DEBUGGING
         elif drive_type == 'd0':
             new_x = self.x + (drive_value + translation_noise) * math.cos(self.theta + math.radians(90)) * ppi
             new_y = self.y + (drive_value + translation_noise) * math.sin(self.theta + math.radians(90)) * ppi
             new_theta = self.theta + angular_noise
+            # print(f"d0:{drive_value} resulted in {max(abs(new_y - self.y) / ppi, abs(new_x - self.x) / ppi)} inches") # TODO DEBUGGING
         elif drive_type == 'r0':
             new_theta = self.theta + math.radians(drive_value) + angular_noise
         else:
@@ -476,6 +478,7 @@ class Particle:
             self.x = new_x
             self.y = new_y
         self.theta = new_theta
+        
         
     def update_weight(self, lidar_distances, expected_distances):
         """Update particle weight based on the lidar readings."""
