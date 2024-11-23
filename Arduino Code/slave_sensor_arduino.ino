@@ -1,15 +1,15 @@
 #include <Wire.h>
 #include <VL53L0X.h>
 
-#define SENSOR_COUNT 7                // Number of VL53L0X sensors
+#define SENSOR_COUNT 8                // Number of VL53L0X sensors
 #define TIMING_BUDGET 200000          // Measurement timing budget (us)
 float data_to_send[SENSOR_COUNT] = {};  // Array to store readings
 
 VL53L0X sensors[SENSOR_COUNT];
 
 // Resetting I2C addresses for all sensors connected
-const int xshut_pins[SENSOR_COUNT] = { 2, 3, 4, 5, 6, 7, 8 };                                 // XSHUT pins for each sensor
-const uint8_t sensor_addresses[SENSOR_COUNT] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36 };  // New I2C addresses
+const int xshut_pins[SENSOR_COUNT] = { 2, 3, 4, 5, 6, 7, 8, 9 };                                 // XSHUT pins for each sensor
+const uint8_t sensor_addresses[SENSOR_COUNT] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38 };  // New I2C addresses
 
 // Variables to track samples and timing
 unsigned long startTime = 0;
@@ -17,8 +17,8 @@ unsigned long currentTime = 0;
 unsigned long sampleCounts[SENSOR_COUNT] = {};  // Sample counts for each sensor
 
 // Adjustment factors
-const float slope_adjustments[7] = {0.966, 0.966, 1.01051, 0.95511, 0.93791, 1.05296, 0.94384};
-const float const_adjustments[7] = {-8.9772, -8.9772, -11.833, -24.426, -4.4361, -41.594, -8.8173};
+const float slope_adjustments[8] = {0.966, 0.966, 1.01051, 0.95511, 0.93791, 1.05296, 0.94384, 1}; // t7 was 1.218 (1:17am 22 Nov)
+const float const_adjustments[8] = {-8.9772, -8.9772, -11.833, -24.426, -4.4361, -41.594, -8.8173, -30};  // t7 was -21.308 (1:17am 22 Nov)
 
 void setup() {
   Serial.begin(115200);

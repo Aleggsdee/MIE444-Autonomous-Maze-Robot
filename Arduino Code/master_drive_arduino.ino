@@ -1,6 +1,23 @@
 #include <CircularBuffer.hpp>
 #include <AccelStepper.h>
 #include <MultiStepper.h>
+#include <Servo.h>
+
+// Servo Variables 
+Servo grip_servo; // create servo object to control gripping action
+Servo lift_servo; // create servo object to control lifting action
+
+// servo pin assignments
+int gripper = 44;  // grip servo
+int lifter = 46;  // lift servo
+
+// gripper servo positions
+int openPos = 150;
+int closePos = 0;
+
+// lift servo positions
+int upPos = 150;
+int downPos = 5; 
 
 // Define Stepper pin assignments (driver mode, step pin, direction pin)
 AccelStepper stepper1(1, 2, 5); // Left Motor (X on driver shield)
@@ -29,7 +46,7 @@ const float COUNTS_PER_METER = STEPS_PER_ROTATION / WHEEL_CIRCUMFERENCE;
 #define DEG_TO_RAD (PI / 180.0)
 
 // Variables for recieving sensor data
-#define SENSOR_COUNT 7
+#define SENSOR_COUNT 8
 #define START_BYTE 0xFF
 #define FLOAT_SIZE sizeof(float)
 #define TOTAL_BYTES (FLOAT_SIZE * SENSOR_COUNT)
@@ -46,6 +63,19 @@ void setup() {
   Serial2.begin(115200); // Initialize serial monitor for slave-master communication 
   // TODO: Uncomment serial2 begin line
   initialize_steppers();  // Setup stepper settings (speed)
+
+  grip_servo.attach(gripper); // attaches grip servo to pin 9
+  lift_servo.attach(lifter);  // attaches lift servo to pin 10
+  
+  // Drop any block in gripper
+  lift_servo.write(downPos); // CLOSE GRIPPER
+  delay(500); // WAIT FOR GRIPPER TO CLOSE
+  grip_servo.write(openPos);  // LIFT GRIPPER
+  delay(3000);
+  // Set gripper to stowed position
+  grip_servo.write(closePos);
+  delay(500);  // Wait for gripper to close (to clear front standoffs)
+  lift_servo.write(upPos);
 
   pinMode(ENABLE_PIN, OUTPUT);  // Initialize power saving pin
   digitalWrite(ENABLE_PIN, HIGH);  // Supply power to steppers
@@ -76,7 +106,7 @@ void loop() {
       isDriving = false;
       
       // Turns steppers off to save power (uncomment line below)
-      //digitalWrite(ENABLE_PIN, HIGH);
+      digitalWrite(ENABLE_PIN, HIGH);
 
     }
 
@@ -155,6 +185,32 @@ void loop() {
         }
         Serial.println("]");
       }
+
+      else if (cmdStr.charAt(1) == 'c') {
+        // Close and lift gripper
+        grip_servo.write(closePos); // CLOSE GRIPPER
+        delay(500); // WAIT FOR GRIPPER TO CLOSE
+        lift_servo.write(upPos);  // LIFT GRIPPER
+        Serial.println("]");
+      }
+        else if (cmdStr.charAt(1) == 'o') {
+        // Lower and open gripper
+        lift_servo.write(downPos); // CLOSE GRIPPER
+        delay(500); // WAIT FOR GRIPPER TO CLOSE
+        grip_servo.write(openPos);  // LIFT GRIPPER
+        Serial.println("]");
+      }
+
+      else if (cmdStr.charAt(1) == 'k') {
+        // Enable holding torque
+        digitalWrite(ENABLE_PIN, LOW);
+        Serial.println("]");
+      }
+      else if (cmdStr.charAt(1) == 'l') {
+        // Disable holding torque
+        digitalWrite(ENABLE_PIN, HIGH);
+        Serial.println("]");
+      }
       else {
         Serial.println("]");
       }
@@ -176,6 +232,17 @@ void calculateTargetSteps(char commandType, float driveValue){
   targetSteps[0] += (COUNTS_PER_METER * driveValueMeters) * cos(30*DEG_TO_RAD);
   targetSteps[1] += (COUNTS_PER_METER * -driveValueMeters) * cos(30*DEG_TO_RAD);
   targetSteps[2] += 0;
+
+  stepper1.setMaxSpeed(600);
+  stepper2.setMaxSpeed(600);
+  stepper3.setMaxSpeed(600);
+
+  if (abs(driveValue) <= 1){
+    stepper1.setMaxSpeed(200);
+    stepper2.setMaxSpeed(200);
+    stepper3.setMaxSpeed(200);
+  }
+
   // Serial.println("target steps w set");
   // Serial.println(COUNTS_PER_METER);
   // Serial.println(driveValue);
@@ -192,6 +259,10 @@ void calculateTargetSteps(char commandType, float driveValue){
   targetSteps[1] += (COUNTS_PER_METER * driveValueMeters) * cos(60*DEG_TO_RAD);
   targetSteps[2] += COUNTS_PER_METER * -driveValueMeters;
 
+  stepper1.setMaxSpeed(150);
+  stepper2.setMaxSpeed(150);
+  stepper3.setMaxSpeed(150);
+
   }
   else if (commandType == 'r') {
     // Rotate command
@@ -200,6 +271,16 @@ void calculateTargetSteps(char commandType, float driveValue){
   targetSteps[0] += targetRotateSteps;
   targetSteps[1] += targetRotateSteps;
   targetSteps[2] += targetRotateSteps;
+
+  stepper1.setMaxSpeed(600);
+  stepper2.setMaxSpeed(600);
+  stepper3.setMaxSpeed(600);  //TODO: Unfuck this technical debt
+
+    if (abs(driveValue) <= 5){
+      stepper1.setMaxSpeed(100);
+      stepper2.setMaxSpeed(100);
+      stepper3.setMaxSpeed(100);
+      }
 
   }
   else {
@@ -220,9 +301,9 @@ void stop_steppers() {
 
 void initialize_steppers() {
   // Configure max speeds (in steps per second)
-  stepper1.setMaxSpeed(150);
-  stepper2.setMaxSpeed(150);
-  stepper3.setMaxSpeed(150);
+  stepper1.setMaxSpeed(600);
+  stepper2.setMaxSpeed(600);
+  stepper3.setMaxSpeed(600);
 
   // Then give stepper objects to MultiStepper to manage simultaneously
   steppers.addStepper(stepper1);
@@ -231,7 +312,7 @@ void initialize_steppers() {
 }
 
 void sendSensorAndStepData(){
-  for (int i = 0; i<7; i++){
+  for (int i = 0; i<SENSOR_COUNT; i++){
     Serial.print("t");
     Serial.print(i);
     Serial.print(":");
