@@ -50,6 +50,7 @@ def init_grid():
 
     return grid
 
+# navigation matrix to loading zone
 def init_loading_zone_grid():
     # Set unmovable space that is not an obstacle
     grid = np.full((GRID_HEIGHT, GRID_WIDTH), 2, dtype=int)
@@ -283,9 +284,9 @@ def display_grid(reduced_grid):
 # grid = init_grid()
 # display_grid(grid)
 
-# loading_zone = init_loading_zone_grid()
-# display_grid(loading_zone)
-# print(loading_zone[41][12])
+loading_zone = init_loading_zone_grid()
+display_grid(loading_zone)
+print(loading_zone[14][89])
 
-drop_directions = init_drop_off_zone_grid3()
-display_grid(drop_directions)
+# drop_directions = init_drop_off_zone_grid3()
+# display_grid(drop_directions)

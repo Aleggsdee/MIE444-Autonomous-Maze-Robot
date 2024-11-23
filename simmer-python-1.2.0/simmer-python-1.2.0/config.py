@@ -44,12 +44,12 @@ frame_end = ']'
 round_digits = 3
 
 # Block information
-block_position = [80, 5]        # Block starting location
+block_position = [21, 3]        # Block starting location
 block_rotation = 0              # Block rotation (deg)
-block_size = 3                  # Block side length in inches
+block_size = 1.5                  # Block side length in inches
 
 # Robot information
-robot_start_position = [6, 42]  # Robot starting location (in)
+robot_start_position = [6, 24]  # Robot starting location (in)
 robot_start_rotation = 180      # Robot starting rotation (deg)
 robot_width = 6                 # Robot width in inches
 robot_height = 6                # Robot height in inches
@@ -147,8 +147,8 @@ w0_info = {
     'ang_velocity': 0,
     'motors': [motors['m1'], motors['m2']],
     'motor_direction': [1, -1], # TODO: might need to check these positive negative values
-    'bias': {'x': 0.01, 'y': 0, 'rotation': 0.02},
-    'error': {'x': 0.01, 'y': 0.01, 'rotation': 0.01}
+    # 'bias': {'x': 0.01, 'y': 0, 'rotation': 0.02},
+    # 'error': {'x': 0.01, 'y': 0.01, 'rotation': 0.01}
 }
 
 d0_info = {
@@ -160,8 +160,8 @@ d0_info = {
     'ang_velocity': 0,
     'motors': [motors['m1'], motors['m2'], motors['m3']],
     'motor_direction': [1, 1, -1], # TODO: might need to check these positive negative values
-    'bias': {'x': 0.01, 'y': 0.01, 'rotation': 0.02},
-    'error': {'x': 0.01, 'y': 0.01, 'rotation': 0.01}
+    # 'bias': {'x': 0.01, 'y': 0.01, 'rotation': 0.02},
+    # 'error': {'x': 0.01, 'y': 0.01, 'rotation': 0.01}
 }
 
 r0_info = {
@@ -173,8 +173,8 @@ r0_info = {
     'ang_velocity': 100,
     'motors': [motors['m1'], motors['m2'], motors['m3']],
     'motor_direction': [1, 1, 1],
-    'bias': {'x': 0, 'y': 0, 'rotation': 0.01},
-    'error': {'x': 0.003, 'y': 0.003, 'rotation': 0.02}
+    # 'bias': {'x': 0, 'y': 0, 'rotation': 0.01},
+    # 'error': {'x': 0.003, 'y': 0.003, 'rotation': 0.02}
 }
 
 drives = {
@@ -187,7 +187,7 @@ drives = {
 t0_info = { # Left sensor
     'id': 't0',
     'position': [3, 0],
-    'height': 1,
+    'height': 8,
     'rotation': -90,
     'error': 0.0,
     'outline': [
@@ -203,7 +203,7 @@ t0_info = { # Left sensor
 t1_info = { # Left 60 sensor
     'id': 't1',
     'position': [2.6, 1.5],
-    'height': 1,
+    'height': 8,
     'rotation': -60,
     'error': 0.0,
     'outline': [
@@ -219,7 +219,7 @@ t1_info = { # Left 60 sensor
 t2_info = { # Left 30 sensor
     'id': 't2',
     'position': [1.5, 2.6],
-    'height': 1,
+    'height': 8,
     'rotation': -30,
     'error': 0.0,
     'outline': [
@@ -235,7 +235,7 @@ t2_info = { # Left 30 sensor
 t3_info = { # front sensor
     'id': 't3',
     'position': [0, 3],
-    'height': 1,
+    'height': 8,
     'rotation': 0,
     'error': 0.0,
     'outline': [
@@ -251,7 +251,7 @@ t3_info = { # front sensor
 t4_info = { # right 30 sensor
     'id': 't4',
     'position': [-1.5, 2.6],
-    'height': 1,
+    'height': 8,
     'rotation': 30,
     'error': 0.0,
     'outline': [
@@ -267,7 +267,7 @@ t4_info = { # right 30 sensor
 t5_info = { # right 60 sensor
     'id': 't5',
     'position': [-2.6, 1.5],
-    'height': 1,
+    'height': 8,
     'rotation': 60,
     'error': 0.0,
     'outline': [
@@ -283,8 +283,24 @@ t5_info = { # right 60 sensor
 t6_info = { # right sensor
     'id': 't6',
     'position': [-3, 0],
-    'height': 1,
+    'height': 8,
     'rotation': 90,
+    'error': 0.0,
+    'outline': [
+        pm.Vector2(-1, -0.5),
+        pm.Vector2(-1, 0.5),
+        pm.Vector2(1, 0.5),
+        pm.Vector2(1, -0.5)
+    ],
+    'visible': True,
+    'visible_measurement': True
+}
+
+t7_info = { # bottom sensor
+    'id': 't7',
+    'position': [0, 3],
+    'height': 1,
+    'rotation': 0,
     'error': 0.0,
     'outline': [
         pm.Vector2(-1, -0.5),
@@ -304,7 +320,8 @@ sensors = {
     't4': ToF(t4_info),
     't5': ToF(t5_info),
     't6': ToF(t6_info),
+    't7': ToF(t7_info),
 }
 
 ### TESTING AND DEBUG SETTINGS ###
-simulate_list = ['t0', 't1', 't2', 't3', 't4', 't5', 't6']
+simulate_list = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7']
