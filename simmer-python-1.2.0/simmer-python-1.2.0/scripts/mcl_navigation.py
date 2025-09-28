@@ -20,7 +20,7 @@ pygame.init()
 # Constants
 GRID_WIDTH = 96 + 2 # inches (one extra inch on each side for border)
 GRID_HEIGHT = 48 + 2 # inches (one extra inch on each side for border)
-ppi = 3
+ppi = 12
 WINDOW_WIDTH = GRID_WIDTH * ppi
 WINDOW_HEIGHT = GRID_HEIGHT * ppi
 WHITE = (255, 255, 255)
@@ -228,7 +228,7 @@ FRAMEEND = ']'
 CMD_DELIMITER = ','
 
 ### Set whether to use TCP (SimMeR) or serial (Arduino) ###
-SIMULATE = False
+SIMULATE = True
 
 
 
