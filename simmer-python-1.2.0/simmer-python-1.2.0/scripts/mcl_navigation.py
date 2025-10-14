@@ -20,7 +20,7 @@ pygame.init()
 # Constants
 GRID_WIDTH = 96 + 2 # inches (one extra inch on each side for border)
 GRID_HEIGHT = 48 + 2 # inches (one extra inch on each side for border)
-ppi = 3
+ppi = mh.ppi
 WINDOW_WIDTH = GRID_WIDTH * ppi
 WINDOW_HEIGHT = GRID_HEIGHT * ppi
 WHITE = (255, 255, 255)
@@ -32,11 +32,10 @@ MAX_SENSOR_READING = 6000.0 / 127.0
 MIN_SENSOR_READING = 3.0 / 2.54
 
 # Simulation parameters
-NUM_PARTICLES = 5000
+NUM_PARTICLES = mh.NUM_PARTICLES
 
 # Noise parameters
-MOVEMENT_NOISE = 0.2
-WEIGHT_NOISE = 0.5
+MOVEMENT_NOISE = mh.MOVEMENT_NOISE
     
     
 grid = mh.init_grid()
@@ -228,7 +227,7 @@ FRAMEEND = ']'
 CMD_DELIMITER = ','
 
 ### Set whether to use TCP (SimMeR) or serial (Arduino) ###
-SIMULATE = False
+SIMULATE = True
 
 
 
@@ -750,7 +749,7 @@ while running:
         print(f"Particle Position: {pred_x / ppi - 1}, {pred_y / ppi - 1}")
         print(f"Particle Angle: {pred_theta}")
         print(f"Particle Position Variance: {variance}")
-        if not is_localized and variance < 3: # usually 3
+        if not is_localized and variance < 50:
             is_localized = True
             print("LOCALIZED!")
             

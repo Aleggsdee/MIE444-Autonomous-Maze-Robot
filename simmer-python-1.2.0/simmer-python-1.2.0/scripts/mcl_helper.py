@@ -10,7 +10,7 @@ import pickle
 # Constants
 GRID_WIDTH = 96 + 2 # inches (one extra inch on each side for border)
 GRID_HEIGHT = 48 + 2 # inches (one extra inch on each side for border)
-ppi = 3
+ppi = 12
 WINDOW_WIDTH = GRID_WIDTH * ppi
 WINDOW_HEIGHT = GRID_HEIGHT * ppi
 WHITE = (255, 255, 255)
@@ -20,19 +20,19 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 MAX_SENSOR_READING = 6000.0 / 127.0
 MIN_SENSOR_READING = 3.0 / 2.54
-MIN_SENSOR_STD = 1 # 1, 1.5, 2 (usually 1)
-MAX_SENSOR_STD = 2.5 # 2, 2.5, 3 (usually 2.5)
-certainty = 0
 
 
 # Simulation parameters
 NUM_PARTICLES = 5000
 
 # Noise parameters
-MOVEMENT_NOISE = 0.025
+MOVEMENT_NOISE = 0.25
+MIN_SENSOR_STD = 0.8
+MAX_SENSOR_STD = 1.5
+certainty = 0
 
 
-with open('sensor_data_3_ppi_15_beam_angle.pkl', 'rb') as f:
+with open('sensor_data_12_ppi_15_beam_angle.pkl', 'rb') as f:
     loaded_sensor_readings = pickle.load(f)
 
 
@@ -399,8 +399,8 @@ def resample_particles(particles, grid, valid_positions, pred_x, pred_y):
     def jitter_particle(particle):
         # Add a small random noise to position (pose.x, pose.y) and orientation (pose.theta)
         noise_scale = max(1 - certainty, 0)
-        new_x = particle.x + np.random.normal(0, 0.1 + 0.5 * noise_scale)  # Jitter in x-axis
-        new_y = particle.y + np.random.normal(0, 0.1 + 0.5 * noise_scale)  # Jitter in y-axis
+        new_x = particle.x + np.random.normal(0, 0.5 + 2 * noise_scale)  # Jitter in x-axis
+        new_y = particle.y + np.random.normal(0, 0.5 + 2 * noise_scale)  # Jitter in y-axis
         new_theta = particle.theta + np.random.normal(0, 0.1)  # Jitter in orientation
         
         # Create a new particle with a similar pose
@@ -641,8 +641,3 @@ def shortest_rotation_distance(target_angle, current_angle):
         return cw_distance  # Positive for CW
     else:
         return -ccw_distance  # Negative for CCW
-    
-def particle_angular_variance(particles, pred_theta):
-    shortest_distances = [abs(shortest_rotation_distance(normalize_angle(p.theta), normalize_angle(pred_theta))) for p in particles]
-    variance_theta = np.average(shortest_distances)
-    return variance_theta

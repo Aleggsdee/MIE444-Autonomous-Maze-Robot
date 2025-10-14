@@ -13,7 +13,7 @@ pygame.init()
 # Constants
 GRID_WIDTH = 96 + 2 # inches (one extra inch on each side for border)
 GRID_HEIGHT = 48 + 2 # inches (one extra inch on each side for border)
-ppi = 3
+ppi = 12
 WINDOW_WIDTH = GRID_WIDTH * ppi
 WINDOW_HEIGHT = GRID_HEIGHT * ppi
 WHITE = (255, 255, 255)
@@ -632,10 +632,10 @@ for x, y in valid_positions:
 end_time = time.time()
 print(f"Time Taken (s): {end_time - start_time}")
 
-with open('sensor_data_3_ppi_15_beam_angle.pkl', 'wb') as f:
+with open('sensor_data_12_ppi_15_beam_angle.pkl', 'wb') as f:
     pickle.dump(all_sensor_readings, f)
 
-with open('sensor_data_3_ppi_15_beam_angle.pkl', 'rb') as f:
+with open('sensor_data_12_ppi_15_beam_angle.pkl', 'rb') as f:
     loaded_sensor_readings = pickle.load(f)
     
 print(len(loaded_sensor_readings))
